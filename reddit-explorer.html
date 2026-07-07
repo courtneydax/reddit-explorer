@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reddit Explorer</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #ff4500;
+      --accent-dim: rgba(255,69,0,0.12);
+      --blue: #4fbcff;
+      --blue-btn: #0079d3;
+      --bg: #0d0d0e;
+      --sidebar-bg: #111113;
+      --card: #18181b;
+      --card-hover: #1f1f24;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --border: #27272a;
+      --input-bg: #1c1c1f;
+      --card-width: 220px;
+      --sidebar-w: 260px;
+      --header-h: 52px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      height: var(--header-h);
+      background: #111113;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 20px 0 0;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    .logo-block {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 20px;
+      border-right: 1px solid var(--border);
+      height: 100%;
+    }
+
+    .logo-icon {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 17px;
+      color: var(--text);
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span { color: var(--accent); }
+
+    .header-search {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      max-width: 640px;
+    }
+
+    .search-field {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .search-field:focus-within {
+      border-color: var(--accent);
+    }
+
+    .search-prefix {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+      padding: 0 8px;
+      font-weight: 600;
+      white-space: nowrap;
+      border-right: 1px solid var(--border);
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-field input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      padding: 0 12px;
+      height: 36px;
+    }
+
+    .search-field input::placeholder { color: var(--text-muted); }
+
+    .btn-search {
+      padding: 0 20px;
+      height: 36px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: opacity 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn-search:hover { opacity: 0.9; }
+    .btn-search:active { transform: scale(0.97); }
+
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .page-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 4px 10px;
+    }
+
+    .page-badge span { color: var(--text); font-weight: 600; }
+
+    .version-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-left: 2px;
+    }
+
+    .btn-hamburger {
+      display: none;
+      width: 36px; height: 36px;
+      align-items: center; justify-content: center;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-hamburger:hover { background: var(--border); color: var(--text); }
+
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 150;
+    }
+    .sidebar-backdrop.show { display: block; }
+
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    @media (max-width: 860px) {
+      .logo-block { width: auto; border-right: none; padding: 0 12px; }
+      .logo-text { display: none; }
+      .header-search { max-width: none; }
+      .btn-hamburger { display: flex; }
+      .sidebar {
+        position: fixed;
+        top: var(--header-h);
+        left: 0;
+        bottom: 0;
+        z-index: 200;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: 8px 0 24px rgba(0,0,0,0.4);
+      }
+      .sidebar.open { transform: translateX(0); }
+      :root { --card-width: 160px; }
+    }
+
+    @media (max-width: 560px) {
+      .header-top, .header { padding-right: 10px; }
+      .btn-search { padding: 0 14px; font-size: 12px; }
+      .search-prefix { padding: 0 6px; font-size: 10px; }
+      .page-badge { display: none; }
+    }
+
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .sidebar-section {
+      padding: 16px 16px 0;
+    }
+
+    .sidebar-section:last-of-type {
+      padding-bottom: 20px;
+    }
+
+    .section-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.2px;
+    }
+
+    .field input,
+    .field select {
+      padding: 8px 10px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--text);
+      outline: none;
+      font-size: 13px;
+      font-family: 'Inter', sans-serif;
+      width: 100%;
+      transition: border-color 0.2s;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .field input:focus,
+    .field select:focus { border-color: var(--accent); }
+
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%2371717a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+      cursor: pointer;
+    }
+
+    .field input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(0.5);
+      cursor: pointer;
+    }
+
+    .zoom-row { display: flex; gap: 6px; align-items: center; }
+    .btn-zoom {
+      flex: 1; background: var(--input-bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 7px; padding: 7px;
+      font-size: 16px; font-weight: bold; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s; text-align: center; line-height: 1;
+    }
+    .btn-zoom:hover { background: var(--border); border-color: #3f3f46; }
+    .zoom-value {
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+      color: var(--text-muted); min-width: 40px; text-align: center;
+    }
+
+    .sidebar-actions { display: flex; flex-direction: column; gap: 7px; padding: 0 16px 20px; }
+    .btn-sidebar {
+      width: 100%; padding: 9px 16px; border-radius: 8px; border: none;
+      font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px;
+      cursor: pointer; transition: opacity 0.15s, transform 0.1s; text-align: center;
+    }
+    .btn-sidebar:active { transform: scale(0.98); }
+    .btn-sidebar.primary { background: var(--accent); color: white; }
+    .btn-sidebar.secondary { background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-sidebar:hover { opacity: 0.85; }
+
+    .pagination-block { padding: 0 16px 20px; display: flex; gap: 6px; }
+    .btn-page {
+      flex: 1; padding: 8px; background: var(--input-bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 7px; font-size: 18px;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; text-align: center;
+    }
+    .btn-page:hover:not(:disabled) { background: var(--blue-btn); border-color: var(--blue-btn); color: white; }
+    .btn-page:disabled { opacity: 0.25; cursor: not-allowed; }
+
+    .main { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+    .main::-webkit-scrollbar { width: 6px; }
+    .main::-webkit-scrollbar-track { background: transparent; }
+    .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(var(--card-width), 1fr));
+      gap: 12px; padding: 16px;
+    }
+
+    .card {
+      background: var(--card); border-radius: 10px; border: 1px solid var(--border);
+      overflow: hidden; display: flex; flex-direction: column; height: fit-content;
+      position: relative; transition: border-color 0.2s, background 0.2s, transform 0.15s, box-shadow 0.2s; cursor: default;
+    }
+    .card:hover {
+      background: var(--card-hover); border-color: #3f3f46;
+      transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .card-img-wrap { position: relative; overflow: hidden; }
+    .card img, .card video, .card iframe {
+      width: 100%; height: auto; display: block; cursor: zoom-in;
+      background: #0d0d0e; min-height: 80px; transition: transform 0.3s; border: none;
+    }
+    .card:hover img, .card:hover video { transform: scale(1.02); }
+
+    .tag {
+      position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(4px); color: white; padding: 2px 7px; border-radius: 4px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 600; z-index: 10; letter-spacing: 0.5px;
+    }
+    .tag-blue { background: rgba(0,121,211,0.85); right: auto; left: 8px; }
+
+    .card-info {
+      padding: 10px 12px; font-size: 12px; border-top: 1px solid var(--border); line-height: 1.7;
+    }
+    .card-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+    .user-link { color: var(--blue); text-decoration: none; font-weight: 600; cursor: pointer; font-size: 12px; transition: color 0.15s; display: inline-flex; align-items: center; gap: 4px; }
+    .user-link:hover { color: #7dd3ff; }
+    .score-tag { color: var(--accent); font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 10px; }
+    .sub-link { color: #a1a1aa; font-size: 11px; cursor: pointer; font-weight: 500; transition: color 0.15s; display: inline-flex; align-items: center; gap: 4px; }
+    .sub-link:hover { color: var(--text); }
+    .card-date { color: var(--text-muted); font-size: 10px; font-family: 'IBM Plex Mono', monospace; }
+    .card-actions { display: flex; gap: 5px; margin-top: 8px; }
+    .card-btn {
+      flex: 1; padding: 5px 8px; background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 5px; color: var(--text-muted); font-size: 10px; font-weight: 600;
+      cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+      text-align: center; white-space: nowrap;
+    }
+    .card-btn:hover { background: var(--border); color: var(--text); }
+    .card-btn.sleuth:hover { background: rgba(79,188,255,0.1); border-color: var(--blue); color: var(--blue); }
+
+    .modal-nav { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+    .modal-nav button {
+      background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.15s;
+    }
+    .modal-nav button:hover:not(:disabled) { background: var(--blue-btn); border-color: var(--blue-btn); }
+    .modal-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+    .modal-nav .nav-info { color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: 11px; min-width: 60px; text-align: center; }
+
+    .gallery-message { grid-column: 1 / -1; text-align: center; padding: 80px 20px; color: var(--text-muted); }
+    .gallery-message .msg-icon { font-size: 40px; margin-bottom: 12px; display: block; opacity: 0.5; }
+    .gallery-message .msg-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: #52525b; margin-bottom: 4px; }
+    .gallery-message .msg-sub { font-size: 12px; color: #3f3f46; }
+
+    .modal {
+      display: none; position: fixed; z-index: 2000; left: 0; top: 0;
+      width: 100%; height: 100%; background: rgba(0,0,0,0.92); backdrop-filter: blur(8px);
+      justify-content: center; align-items: center; flex-direction: column; gap: 16px; padding: 24px;
+    }
+    .modal-content { max-width: min(90vw, 1200px); max-height: 80vh; border-radius: 8px; object-fit: contain; box-shadow: 0 32px 80px rgba(0,0,0,0.8); }
+    .modal-buttons { display: flex; gap: 10px; }
+    .modal-btn {
+      padding: 10px 24px; border-radius: 8px; border: none;
+      font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer; transition: opacity 0.15s;
+    }
+    .modal-btn:hover { opacity: 0.85; }
+    .modal-btn.close { background: #27272a; color: var(--text); }
+    .modal-btn.reddit { background: var(--accent); color: white; }
+    .modal-hint { font-size: 11px; color: #52525b; font-family: 'IBM Plex Mono', monospace; }
+
+    #toast {
+      visibility: hidden; background: var(--blue); color: #000; text-align: center;
+      border-radius: 50px; padding: 10px 20px; position: fixed; z-index: 3000;
+      bottom: 24px; right: 24px; font-weight: 700; font-size: 12px;
+      font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.3px; box-shadow: 0 4px 20px rgba(79,188,255,0.3);
+    }
+    #toast.show { visibility: visible; animation: toastin 0.3s, toastout 0.4s 2.1s forwards; }
+    @keyframes toastin { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastout { from { opacity: 1; } to { opacity: 0; } }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+    .kbd { font-family: 'IBM Plex Mono', monospace; font-size: 9px; background: var(--border); color: var(--text-muted); border-radius: 3px; padding: 1px 4px; }
+
+    .favorites-list {
+      list-style: none; padding: 0; margin: 0; max-height: 120px; overflow-y: auto;
+      background: var(--input-bg); border-radius: 6px; border: 1px solid var(--border);
+    }
+    .favorites-list li {
+      padding: 6px 10px; font-size: 12px; cursor: pointer; border-bottom: 1px solid var(--border);
+      transition: background 0.15s; font-family: 'IBM Plex Mono', monospace; color: var(--text-muted);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .favorites-list li:last-child { border-bottom: none; }
+    .favorites-list li:hover { background: var(--border); color: var(--text); }
+    .favorites-list li span { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+    .fav-remove-btn {
+      background: none; border: none; color: var(--text-muted); cursor: pointer;
+      font-size: 14px; padding: 0 4px; margin-left: 6px; transition: color 0.15s; line-height: 1;
+    }
+    .fav-remove-btn:hover { color: var(--accent); }
+    .favorites-search {
+      width: 100%; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--input-bg); color: var(--text); font-size: 12px;
+      font-family: 'Inter', sans-serif; margin-bottom: 8px; outline: none;
+    }
+    .favorites-search:focus { border-color: var(--accent); }
+
+    .add-fav-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      cursor: pointer; font-size: 10px; padding: 0 4px; border-radius: 3px;
+      transition: all 0.15s; line-height: 1.4; font-weight: bold;
+    }
+    .add-fav-btn:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<div id="toast">✓ URL copied</div>
+
+<div class="header">
+  <div class="logo-block">
+    <div class="logo-icon">⬆</div>
+    <span class="logo-text"><span>Red</span>dit Explorer</span>
+    <span class="version-badge" id="versionBadge"></span>
+  </div>
+  <div class="header-search">
+    <div class="search-field">
+      <span class="search-prefix">r/</span>
+      <input type="text" id="sub" placeholder="subreddit" autocorrect="off" autocapitalize="off">
+    </div>
+    <div class="search-field">
+      <span class="search-prefix">u/</span>
+      <input type="text" id="user" placeholder="user" autocorrect="off" autocapitalize="off">
+    </div>
+    <button class="btn-search" id="btnSearch">Search <span class="kbd">↵</span></button>
+  </div>
+  <div class="header-right">
+    <div class="page-badge" id="pageBadge" style="display:none">Page <span id="pageNum">1</span></div>
+    <button class="btn-hamburger" id="btnHamburger" title="Toggle filters">☰</button>
+  </div>
+</div>
+
+<div class="app-body">
+
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="section-label">Filters</div>
+      <div class="field">
+        <label>Data Backend</label>
+        <select id="backend">
+          <option value="arctic">Arctic Shift</option>
+          <option value="pullpush">PullPush</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Minimum Score</label>
+        <input type="number" id="minScore" value="0" min="0">
+      </div>
+      <div class="field">
+        <label>From Date</label>
+        <input type="date" id="date">
+      </div>
+      <div class="field">
+        <label>Sort</label>
+        <select id="sort">
+          <option value="asc">↑ Ascending</option>
+          <option value="desc" selected="">↓ Descending</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Card Size</div>
+      <div class="field">
+        <div class="zoom-row">
+          <button class="btn-zoom" id="btnZoomOut">−</button>
+          <span class="zoom-value" id="zoomVal">220px</span>
+          <button class="btn-zoom" id="btnZoomIn">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-actions">
+      <button class="btn-sidebar secondary" id="btnReset">↺ Reset</button>
+    </div>
+
+    <div class="sidebar-section" style="padding-bottom: 10px;">
+      <div class="section-label">Navigation</div>
+    </div>
+    <div class="pagination-block">
+      <button class="btn-page" id="btnPrev" disabled="" title="Previous page">←</button>
+      <button class="btn-page" id="btnNext" disabled="" title="Next page">→</button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Favorite Subs</div>
+      <input type="text" class="favorites-search" id="favSubSearch" placeholder="Search subs..." autocomplete="off">
+      <ul class="favorites-list" id="favSubList"><li style="color: var(--text-muted); font-style: italic; cursor: default; justify-content: center;">No favorites</li></ul>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Favorite Users</div>
+      <input type="text" class="favorites-search" id="favUserSearch" placeholder="Search users..." autocomplete="off">
+      <ul class="favorites-list" id="favUserList"><li style="color: var(--text-muted); font-style: italic; cursor: default; justify-content: center;">No favorites</li></ul>
+    </div>
+
+    <div class="sidebar-actions" style="flex-direction: row; gap: 8px; padding-top: 10px;">
+      <button class="btn-sidebar secondary" id="btnAddSubFav" style="flex:1; font-size:11px;">⭐ Add Sub</button>
+      <button class="btn-sidebar secondary" id="btnAddUserFav" style="flex:1; font-size:11px;">⭐ Add User</button>
+    </div>
+    <div class="sidebar-actions">
+      <button class="btn-sidebar secondary" id="btnImportFav">📥 Import Favorites</button>
+      <button class="btn-sidebar secondary" id="btnExportFav">📤 Export Favorites</button>
+    </div>
+  </aside>
+
+  <main class="main" id="mainScroll">
+    <div id="gallery" class="gallery">
+      <div class="gallery-message">
+        <span class="msg-icon">🔍</span>
+        <div class="msg-title">Explore Reddit</div>
+        <div class="msg-sub">Enter a subreddit or user to get started</div>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<div id="imageModal" class="modal">
+  <img id="modalImg" class="modal-content" alt="post image">
+  <div class="modal-nav" id="modalNav" style="display:none;">
+    <button id="modalNavPrev" title="Previous image">←</button>
+    <span class="nav-info" id="modalNavInfo">1/1</span>
+    <button id="modalNavNext" title="Next image">→</button>
+  </div>
+  <div class="modal-buttons">
+    <button class="modal-btn close" id="btnModalClose">✕ Close</button>
+    <button class="modal-btn reddit" id="modalRedditBtn">↗ View on Reddit</button>
+  </div>
+  <div class="modal-hint">ESC to close · Click outside to close · ← → to navigate</div>
+</div>
+
+<script>
+  const APP_VERSION = "0.5";
+
+  let historialMarcadores = [];
+  let currentTS = null;
+  let paginaActual = 1;
+  let primerTSActual = null;
+  let currentWidth = 220;
+  let currentGalleryImages = [];
+  let currentGalleryIndex = 0;
+
+  const FAV_SUBS_KEY = 'redditExplorer_favSubs';
+  const FAV_USERS_KEY = 'redditExplorer_favUsers';
+  const BACKEND_KEY = 'redditExplorer_backend';
+
+  const BACKEND_LABELS = { arctic: 'Arctic Shift', pullpush: 'PullPush' };
+
+  function getBackendPreference() {
+    return localStorage.getItem(BACKEND_KEY) || 'arctic';
+  }
+
+  function setBackendPreference(backend) {
+    localStorage.setItem(BACKEND_KEY, backend);
+  }
+
+  // Arma la URL de búsqueda según el backend elegido.
+  // Ambos backends devuelven los resultados en la misma forma ({ data: [...] }),
+  // pero difieren en el nombre del parámetro de cantidad de resultados.
+  function buildSearchUrl(backend, { sub, user, sort, limit, ts }) {
+    let url;
+    if (backend === "pullpush") {
+      url = `https://api.pullpush.io/reddit/search/submission/?size=${limit}&sort=${sort}`;
+    } else {
+      url = `https://arctic-shift.photon-reddit.com/api/posts/search?limit=${limit}&sort=${sort}`;
+    }
+    if (sub)  url += `&subreddit=${encodeURIComponent(sub)}`;
+    if (user) url += `&author=${encodeURIComponent(user)}`;
+    if (ts !== null) url += sort === "asc" ? `&after=${ts}` : `&before=${ts}`;
+    return url;
+  }
+
+  function getBaseUrl() {
+    return window.location.href.split("?")[0];
+  }
+
+  function getRedGifsEmbedUrl(url) {
+    const match = url.match(/redgifs\.com\/watch\/([a-zA-Z0-9]+)/);
+    if (match) {
+      return `https://redgifs.com/ifr/${match[1]}`;
+    }
+    return null;
+  }
+
+  // Favorites management with localStorage
+  function getFavorites(key) {
+    try {
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveFavorites(key, list) {
+    localStorage.setItem(key, JSON.stringify(list));
+  }
+
+  // Set all favorites at once (used for import)
+  function setAllFavorites(subs, users) {
+    if (Array.isArray(subs)) {
+      subs.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+      localStorage.setItem(FAV_SUBS_KEY, JSON.stringify(subs));
+    }
+    if (Array.isArray(users)) {
+      users.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+      localStorage.setItem(FAV_USERS_KEY, JSON.stringify(users));
+    }
+    // Refresh UI lists
+    if (refreshSubsList) {
+      document.getElementById('favSubSearch').value = '';
+      refreshSubsList();
+    }
+    if (refreshUsersList) {
+      document.getElementById('favUserSearch').value = '';
+      refreshUsersList();
+    }
+  }
+
+  // Import favorites from JSON file
+  function importFavoritesFromJSON() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    
+    input.onchange = function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const data = JSON.parse(event.target.result);
+          let importedSubs = [];
+          let importedUsers = [];
+          
+          if (data.subs && Array.isArray(data.subs)) {
+            importedSubs = data.subs;
+          }
+          if (data.users && Array.isArray(data.users)) {
+            importedUsers = data.users;
+          }
+          
+          if (importedSubs.length === 0 && importedUsers.length === 0) {
+            alert('No valid favorites found in the JSON file.');
+            return;
+          }
+          
+          // Merge with existing favorites
+          const existingSubs = getFavorites(FAV_SUBS_KEY);
+          const existingUsers = getFavorites(FAV_USERS_KEY);
+          
+          const mergedSubs = [...new Set([...existingSubs, ...importedSubs])];
+          const mergedUsers = [...new Set([...existingUsers, ...importedUsers])];
+          
+          setAllFavorites(mergedSubs, mergedUsers);
+          
+          const toast = document.getElementById("toast");
+          toast.textContent = `✓ Imported ${mergedSubs.length} subs and ${mergedUsers.length} users`;
+          toast.className = "show";
+          setTimeout(() => {
+            toast.className = "";
+            toast.textContent = '✓ URL copied';
+          }, 2500);
+        } catch (err) {
+          alert('Error reading the JSON file. Make sure it is a valid favorites.json file.');
+          console.error('Import error:', err);
+        }
+      };
+      reader.readAsText(file);
+    };
+    
+    input.click();
+  }
+
+  // Export favorites to JSON file
+  function exportFavoritesToJSON() {
+    const favoritesData = {
+      subs: getFavorites(FAV_SUBS_KEY),
+      users: getFavorites(FAV_USERS_KEY),
+      lastUpdated: new Date().toISOString()
+    };
+    
+    const jsonString = JSON.stringify(favoritesData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'favorites.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    const toast = document.getElementById("toast");
+    toast.textContent = '✓ Favorites exported';
+    toast.className = "show";
+    setTimeout(() => {
+      toast.className = "";
+      toast.textContent = '✓ URL copied';
+    }, 2500);
+  }
+
+  function addFavorite(key, name) {
+    if (!name || name.trim() === '') return false;
+    const trimmed = name.trim();
+    const list = getFavorites(key);
+    if (list.includes(trimmed)) return false;
+    list.push(trimmed);
+    list.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    saveFavorites(key, list);
+    return true;
+  }
+
+  function removeFavorite(key, name) {
+    let list = getFavorites(key);
+    list = list.filter(item => item !== name);
+    saveFavorites(key, list);
+  }
+
+  function renderFavoritesList(containerId, searchInputId, key, prefix) {
+    const container = document.getElementById(containerId);
+    const searchInput = document.getElementById(searchInputId);
+    if (!container || !searchInput) return;
+
+    function refreshList(filter = '') {
+      const list = getFavorites(key);
+      list.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+      const filtered = filter ? list.filter(name => name.toLowerCase().startsWith(filter.toLowerCase())) : list;
+      container.innerHTML = '';
+      if (filtered.length === 0) {
+        container.innerHTML = '<li style="color: var(--text-muted); font-style: italic; cursor: default; justify-content: center;">No favorites</li>';
+        return;
+      }
+      filtered.forEach(name => {
+        const li = document.createElement('li');
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = `${prefix}/${name}`;
+        nameSpan.addEventListener('click', () => {
+          const paramKey = prefix === 'r' ? 'sub' : 'user';
+          window.location.href = `${getBaseUrl()}?${paramKey}=${name}`;
+        });
+        
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'fav-remove-btn';
+        removeBtn.innerHTML = '✕';
+        removeBtn.title = `Remove ${prefix}/${name} from favorites`;
+        removeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          removeFavorite(key, name);
+          refreshList(searchInput.value);
+        });
+        
+        li.appendChild(nameSpan);
+        li.appendChild(removeBtn);
+        container.appendChild(li);
+      });
+    }
+
+    searchInput.addEventListener('input', () => {
+      refreshList(searchInput.value);
+    });
+
+    refreshList();
+    return refreshList;
+  }
+
+  let refreshSubsList = null;
+  let refreshUsersList = null;
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.title = `Reddit Explorer v${APP_VERSION}`;
+    document.getElementById("versionBadge").textContent = `v${APP_VERSION}`;
+
+    const sidebarEl = document.querySelector(".sidebar");
+    const backdropEl = document.getElementById("sidebarBackdrop");
+    const hamburgerBtn = document.getElementById("btnHamburger");
+
+    function openSidebar() {
+      sidebarEl.classList.add("open");
+      backdropEl.classList.add("show");
+    }
+    function closeSidebar() {
+      sidebarEl.classList.remove("open");
+      backdropEl.classList.remove("show");
+    }
+    hamburgerBtn.addEventListener("click", () => {
+      sidebarEl.classList.contains("open") ? closeSidebar() : openSidebar();
+    });
+    backdropEl.addEventListener("click", closeSidebar);
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") closeSidebar();
+    });
+    document.getElementById("btnSearch").addEventListener("click", () => { nuevaBusqueda(); closeSidebar(); });
+    document.getElementById("btnReset").addEventListener("click", () => { window.location.href = window.location.href.split("?")[0]; });
+    document.getElementById("btnPrev").addEventListener("click", paginaAnterior);
+    document.getElementById("btnNext").addEventListener("click", paginaSiguiente);
+    document.getElementById("btnModalClose").addEventListener("click", cerrarModal);
+    document.getElementById("btnImportFav").addEventListener("click", importFavoritesFromJSON);
+    document.getElementById("btnExportFav").addEventListener("click", exportFavoritesToJSON);
+
+    ["sub", "user", "minScore", "date", "sort"].forEach(id => {
+      document.getElementById(id).addEventListener("keypress", e => {
+        if (e.key === "Enter") nuevaBusqueda();
+      });
+    });
+
+    document.getElementById("backend").value = getBackendPreference();
+    document.getElementById("backend").addEventListener("change", () => {
+      setBackendPreference(document.getElementById("backend").value);
+      if (document.getElementById("sub").value.trim() || document.getElementById("user").value.trim()) {
+        nuevaBusqueda();
+      }
+    });
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") {
+        cerrarModal();
+      }
+      if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && document.activeElement.tagName !== "INPUT") {
+        if (document.getElementById("imageModal").style.display === "flex" && currentGalleryImages.length > 0) {
+          e.preventDefault();
+          if (e.key === "ArrowRight") navigateModalGallery(1);
+          if (e.key === "ArrowLeft") navigateModalGallery(-1);
+        } else {
+          e.preventDefault();
+          if (e.key === "ArrowRight" && !document.getElementById("btnNext").disabled) paginaSiguiente();
+          if (e.key === "ArrowLeft" && !document.getElementById("btnPrev").disabled) paginaAnterior();
+        }
+      }
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const userParam = urlParams.get("user") || urlParams.get("author");
+    const subParam  = urlParams.get("sub")  || urlParams.get("subreddit");
+    if (userParam) document.getElementById("user").value = userParam;
+    if (subParam)  document.getElementById("sub").value  = subParam;
+    if (userParam || subParam) setTimeout(nuevaBusqueda, 150);
+
+    document.getElementById("btnZoomIn").addEventListener("click", () => {
+      if (currentWidth < 520) { currentWidth += 30; applyZoom(); }
+    });
+    document.getElementById("btnZoomOut").addEventListener("click", () => {
+      if (currentWidth > 120) { currentWidth -= 30; applyZoom(); }
+    });
+
+    function applyZoom() {
+      document.documentElement.style.setProperty("--card-width", currentWidth + "px");
+      document.getElementById("zoomVal").textContent = currentWidth + "px";
+    }
+
+    document.getElementById("imageModal").addEventListener("click", e => {
+      if (e.target === document.getElementById("imageModal")) cerrarModal();
+    });
+
+    document.getElementById("modalNavPrev").addEventListener("click", () => navigateModalGallery(-1));
+    document.getElementById("modalNavNext").addEventListener("click", () => navigateModalGallery(1));
+
+    refreshSubsList = renderFavoritesList('favSubList', 'favSubSearch', FAV_SUBS_KEY, 'r');
+    refreshUsersList = renderFavoritesList('favUserList', 'favUserSearch', FAV_USERS_KEY, 'u');
+
+    document.getElementById("btnAddSubFav").addEventListener("click", () => {
+      const subInput = document.getElementById("sub");
+      const subName = subInput.value.trim();
+      if (!subName) { alert("Please enter a subreddit name first."); return; }
+      const added = addFavorite(FAV_SUBS_KEY, subName);
+      if (added) {
+        refreshSubsList();
+        document.getElementById("favSubSearch").value = '';
+        refreshSubsList();
+      } else {
+        alert(`"${subName}" is already in favorites or invalid.`);
+      }
+    });
+
+    document.getElementById("btnAddUserFav").addEventListener("click", () => {
+      const userInput = document.getElementById("user");
+      const userName = userInput.value.trim();
+      if (!userName) { alert("Please enter a username first."); return; }
+      const added = addFavorite(FAV_USERS_KEY, userName);
+      if (added) {
+        refreshUsersList();
+        document.getElementById("favUserSearch").value = '';
+        refreshUsersList();
+      } else {
+        alert(`"${userName}" is already in favorites or invalid.`);
+      }
+    });
+  });
+
+  function nuevaBusqueda() {
+    historialMarcadores = [];
+    paginaActual = 1;
+    const dateVal = document.getElementById("date").value;
+    currentTS = dateVal ? Math.floor(new Date(dateVal).getTime() / 1000) + 10800 : null;
+    ejecutarCarga();
+  }
+
+  function paginaSiguiente() {
+    historialMarcadores.push(primerTSActual);
+    paginaActual++;
+    ejecutarCarga();
+  }
+
+  function paginaAnterior() {
+    if (paginaActual > 1) {
+      currentTS = historialMarcadores.pop();
+      paginaActual--;
+      ejecutarCarga();
+    }
+  }
+
+  function updatePageBadge() {
+    const badge = document.getElementById("pageBadge");
+    badge.style.display = "block";
+    document.getElementById("pageNum").textContent = paginaActual;
+  }
+
+  function navigateModalGallery(direction) {
+    if (currentGalleryImages.length === 0) return;
+    currentGalleryIndex += direction;
+    if (currentGalleryIndex < 0) currentGalleryIndex = 0;
+    if (currentGalleryIndex >= currentGalleryImages.length) currentGalleryIndex = currentGalleryImages.length - 1;
+    updateModalNav();
+    const imgData = currentGalleryImages[currentGalleryIndex];
+    abrirModal(imgData.url, imgData.redditUrl);
+  }
+
+  function updateModalNav() {
+    const nav = document.getElementById("modalNav");
+    if (currentGalleryImages.length > 1) {
+      nav.style.display = "flex";
+      document.getElementById("modalNavInfo").textContent = `${currentGalleryIndex + 1}/${currentGalleryImages.length}`;
+      document.getElementById("modalNavPrev").disabled = currentGalleryIndex === 0;
+      document.getElementById("modalNavNext").disabled = currentGalleryIndex === currentGalleryImages.length - 1;
+    } else {
+      nav.style.display = "none";
+    }
+  }
+
+  function mostrarToast(mensaje, ms = 2500) {
+    const toast = document.getElementById("toast");
+    const original = toast.textContent;
+    toast.textContent = mensaje;
+    toast.className = "show";
+    setTimeout(() => { toast.className = ""; toast.textContent = original; }, ms);
+  }
+
+  // backendOverride: fuerza un backend puntual (usado por el fallback automático).
+  // esReintento: evita loops infinitos si ambos backends fallan.
+  async function ejecutarCarga(backendOverride = null, esReintento = false) {
+    const sub      = document.getElementById("sub").value.trim();
+    const user     = document.getElementById("user").value.trim();
+    const sort     = document.getElementById("sort").value;
+    const minScore = parseInt(document.getElementById("minScore").value) || 0;
+    const gallery  = document.getElementById("gallery");
+    const backend  = backendOverride || document.getElementById("backend").value;
+
+    if (!sub && !user) return;
+
+    gallery.innerHTML = `
+      <div class="gallery-message">
+        <span class="msg-icon">⏳</span>
+        <div class="msg-title">Loading…</div>
+        <div class="msg-sub">Fetching data from ${BACKEND_LABELS[backend]}</div>
+      </div>`;
+
+    document.getElementById("mainScroll").scrollTo(0, 0);
+    updatePageBadge();
+
+    // Change this number to control how many posts per page (max 100)
+    const POSTS_PER_PAGE = 30;
+
+    const url = buildSearchUrl(backend, { sub, user, sort, limit: POSTS_PER_PAGE, ts: currentTS });
+
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const res  = await resp.json();
+      const posts = res.data;
+
+      if (!posts) throw new Error("Respuesta sin datos");
+
+      // Si veníamos de un fallback exitoso, confirmamos el cambio de backend.
+      if (backendOverride) {
+        document.getElementById("backend").value = backend;
+        setBackendPreference(backend);
+      }
+
+      gallery.innerHTML = "";
+
+      if (posts.length === 0) {
+        document.getElementById("btnNext").disabled = true;
+        gallery.innerHTML = `
+          <div class="gallery-message">
+            <span class="msg-icon">🚫</span>
+            <div class="msg-title">No Results</div>
+            <div class="msg-sub">Try different filters or search terms</div>
+          </div>`;
+        return;
+      }
+
+      primerTSActual = currentTS;
+
+      posts.forEach(post => {
+        if (post.score < minScore) { currentTS = post.created_utc; return; }
+
+        if (post.is_gallery && post.media_metadata) {
+          const galleryImages = [];
+          Object.keys(post.media_metadata).forEach(id => {
+            const item = post.media_metadata[id];
+            if (item.status === "valid" && item.s) {
+              galleryImages.push({
+                url: (item.s.u ? item.s.u : item.s.gif).replace(/&amp;/g, "&"),
+                redditUrl: `https://reddit.com${post.permalink}`
+              });
+            }
+          });
+          if (galleryImages.length > 0) {
+            renderCard(post, galleryImages);
+          }
+        } else {
+          renderCard(post);
+        }
+        currentTS = post.created_utc;
+      });
+
+      document.getElementById("btnPrev").disabled = paginaActual === 1;
+      // FIXED: Compare against POSTS_PER_PAGE instead of hardcoded 100
+      document.getElementById("btnNext").disabled = posts.length < POSTS_PER_PAGE;
+
+    } catch (e) {
+      console.error(e);
+
+      if (!esReintento) {
+        const otroBackend = backend === "arctic" ? "pullpush" : "arctic";
+        mostrarToast(`⚠️ ${BACKEND_LABELS[backend]} failed, trying ${BACKEND_LABELS[otroBackend]}…`);
+        return ejecutarCarga(otroBackend, true);
+      }
+
+      gallery.innerHTML = `
+        <div class="gallery-message">
+          <span class="msg-icon">⚠️</span>
+          <div class="msg-title">Connection Error</div>
+          <div class="msg-sub">Both backends failed (Arctic Shift and PullPush)</div>
+        </div>`;
+    }
+  }
+
+  const PLACEHOLDER_URLS = [
+    "external-preview.redd.it/removed",
+    "deleted_item",
+    "removed_item",
+    "fCqnQwRBHzE",
+  ];
+
+  function esUrlPlaceholder(url) {
+    return PLACEHOLDER_URLS.some(frag => url.includes(frag));
+  }
+
+  function verificarImagenEliminada(imgEl, card) {
+    imgEl.onload = function () {
+      if (this.naturalWidth === 130 && this.naturalHeight === 60) card.remove();
+    };
+    imgEl.onerror = function () { card.remove(); };
+  }
+
+  function renderCard(post, galleryImages = null) {
+    const gallery = document.getElementById("gallery");
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const date = new Date(post.created_utc * 1000)
+      .toLocaleString("en-US", {
+        day: "2-digit", month: "2-digit", year: "numeric",
+        hour: "2-digit", minute: "2-digit"
+      }).toUpperCase();
+
+    const fullRedditUrl = `https://reddit.com${post.permalink}`;
+
+    let displayUrl = post.url;
+    let cardThumbUrl = null; // si se setea, se usa para la miniatura de la tarjeta (evita cargar GIFs pesados en la grilla)
+    
+    const isRedgifs = post.url && post.url.includes('redgifs.com');
+    const redgifsEmbedUrl = isRedgifs ? getRedGifsEmbedUrl(post.url) : null;
+    
+    if (post.url && post.url.match(/^https?:\/\/i\.redd\.it\/.+\.gif$/i)) {
+      displayUrl = post.url;
+    }
+    
+    if (post.preview && post.preview.images && post.preview.images[0].source && !post.is_gallery_item && !isRedgifs) {
+      const previewUrl = post.preview.images[0].source.url.replace(/&amp;/g, "&");
+      if (!post.url.match(/\.gif$/i)) {
+        displayUrl = previewUrl;
+      } else {
+        // Para GIFs: usar la preview estática como miniatura en la tarjeta,
+        // y reservar el GIF animado real para cuando se abra en el modal.
+        cardThumbUrl = previewUrl;
+      }
+    }
+
+    if (post.is_video && post.media && post.media.reddit_video && post.media.reddit_video.fallback_url) {
+      displayUrl = post.media.reddit_video.fallback_url;
+    }
+
+    if (esUrlPlaceholder(displayUrl) && !isRedgifs) return;
+
+    const isGif = post.url && post.url.match(/\.gif$/i);
+    const isVideo = post.is_video || (post.media && post.media.reddit_video);
+    const esGaleria = post.is_gallery_item || (galleryImages && galleryImages.length > 0);
+
+    let mediaElement = '';
+    if (galleryImages && galleryImages.length > 0) {
+      mediaElement = `<img src="${galleryImages[0].url}" loading="lazy" class="img-clickable" alt="" />`;
+    } else if (isRedgifs && redgifsEmbedUrl) {
+      mediaElement = `<iframe src="${redgifsEmbedUrl}" class="img-clickable" style="width:100%; height:360px; display:block; cursor:pointer; background:#0d0d0e; border:none;" allowfullscreen="true"></iframe>`;
+    } else if (isVideo) {
+      mediaElement = `<video src="${displayUrl}" controls muted playsinline class="img-clickable" style="width:100%; height:auto; display:block; cursor:zoom-in; background:#0d0d0e; min-height:80px;"></video>`;
+    } else {
+      mediaElement = `<img src="${cardThumbUrl || displayUrl}" loading="lazy" class="img-clickable" alt="" />`;
+    }
+
+    card.innerHTML = `
+      <div class="card-img-wrap">
+        ${isGif ? '<div class="tag">GIF</div>' : ""}
+        ${isVideo ? '<div class="tag">VIDEO</div>' : ""}
+        ${isRedgifs ? '<div class="tag">REDGIFS</div>' : ""}
+        ${esGaleria ? '<div class="tag tag-blue">GALLERY</div>' : ""}
+        ${mediaElement}
+      </div>
+      <div class="card-info">
+        <div class="card-meta">
+          <span class="user-link">u/${post.author} <button class="add-fav-btn" data-type="user" data-name="${post.author}">+</button></span>
+          <span class="score-tag">↑${post.score}</span>
+        </div>
+        <span class="sub-link">r/${post.subreddit} <button class="add-fav-btn" data-type="sub" data-name="${post.subreddit}">+</button></span>
+        <div class="card-date">${date}</div>
+        <div class="card-actions">
+          <button class="card-btn sleuth">🔍 Sleuth</button>
+          <button class="card-btn img-link">⬆ Image</button>
+          <button class="card-btn reddit-link">↗ Post</button>
+        </div>
+      </div>
+    `;
+
+    const sleuthBtn = card.querySelector('.card-btn.sleuth');
+    const imgLinkBtn = card.querySelector('.card-btn.img-link');
+    const redditLinkBtn = card.querySelector('.card-btn.reddit-link');
+    const imgEl = card.querySelector('img');
+    const videoEl = card.querySelector('video');
+    const iframeEl = card.querySelector('iframe');
+    const userLink = card.querySelector('.user-link');
+    const subLink = card.querySelector('.sub-link');
+    
+    if (imgEl) {
+      verificarImagenEliminada(imgEl, card);
+      imgEl.onclick = function() {
+        if (galleryImages && galleryImages.length > 0) {
+          currentGalleryImages = galleryImages;
+          currentGalleryIndex = 0;
+          updateModalNav();
+          abrirModal(galleryImages[0].url, fullRedditUrl);
+        } else {
+          currentGalleryImages = [];
+          document.getElementById("modalNav").style.display = "none";
+          abrirModal(displayUrl, fullRedditUrl);
+        }
+      };
+    }
+    
+    if (videoEl) {
+      videoEl.onclick = function() {
+        currentGalleryImages = [];
+        document.getElementById("modalNav").style.display = "none";
+        abrirModal(displayUrl, fullRedditUrl);
+      };
+    }
+
+    if (iframeEl) {
+      iframeEl.onclick = function() {
+        window.open(post.url, "_blank");
+      };
+    }
+
+    userLink.onclick = function(e) {
+      if (e.target.classList.contains('add-fav-btn')) return;
+      window.open(`${getBaseUrl()}?user=${post.author}`, "_blank");
+    };
+    
+    subLink.onclick = function(e) {
+      if (e.target.classList.contains('add-fav-btn')) return;
+      window.open(`${getBaseUrl()}?sub=${post.subreddit}`, "_blank");
+    };
+    
+    sleuthBtn.onclick = function() {
+      navigator.clipboard.writeText(displayUrl).then(() => {
+        const toast = document.getElementById("toast");
+        toast.className = "show";
+        setTimeout(() => toast.className = "", 2500);
+      });
+      window.open("https://www.repostsleuth.com/search", "_blank");
+    };
+    
+    imgLinkBtn.onclick = function() {
+      window.open(isRedgifs ? redgifsEmbedUrl : displayUrl, "_blank");
+    };
+    
+    redditLinkBtn.onclick = function() {
+      window.open(fullRedditUrl, "_blank");
+    };
+
+    card.querySelectorAll('.add-fav-btn').forEach(btn => {
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        const type = this.dataset.type;
+        const name = this.dataset.name;
+        if (type === 'sub') {
+          const added = addFavorite(FAV_SUBS_KEY, name);
+          if (added && refreshSubsList) {
+            refreshSubsList();
+            document.getElementById('favSubSearch').value = '';
+            refreshSubsList();
+          }
+        } else if (type === 'user') {
+          const added = addFavorite(FAV_USERS_KEY, name);
+          if (added && refreshUsersList) {
+            refreshUsersList();
+            document.getElementById('favUserSearch').value = '';
+            refreshUsersList();
+          }
+        }
+      };
+    });
+
+    gallery.appendChild(card);
+  }
+
+  function abrirModal(imgUrl, redditUrl) {
+    const modal = document.getElementById("imageModal");
+    const modalImg = document.getElementById("modalImg");
+    
+    const existingVideo = modal.querySelector('video');
+    if (existingVideo) { existingVideo.pause(); existingVideo.remove(); }
+    const existingIframe = modal.querySelector('iframe');
+    if (existingIframe) { existingIframe.remove(); }
+    
+    if (imgUrl.includes('redgifs.com/ifr/')) {
+      const iframeEl = document.createElement('iframe');
+      iframeEl.src = imgUrl;
+      iframeEl.className = 'modal-content';
+      iframeEl.style.width = '640px';
+      iframeEl.style.height = '360px';
+      iframeEl.style.maxWidth = 'min(90vw, 640px)';
+      iframeEl.style.maxHeight = '80vh';
+      iframeEl.style.border = 'none';
+      iframeEl.allowFullscreen = true;
+      
+      modalImg.style.display = 'none';
+      const modalButtons = modal.querySelector('.modal-buttons');
+      modal.insertBefore(iframeEl, modalButtons);
+    } else if (imgUrl.match(/\.(mp4|webm)$/i) || imgUrl.includes('gfycat.com')) {
+      const videoEl = document.createElement('video');
+      videoEl.src = imgUrl;
+      videoEl.controls = true;
+      videoEl.autoplay = true;
+      videoEl.className = 'modal-content';
+      videoEl.style.maxWidth = 'min(90vw, 1200px)';
+      videoEl.style.maxHeight = '80vh';
+      
+      modalImg.style.display = 'none';
+      const modalButtons = modal.querySelector('.modal-buttons');
+      modal.insertBefore(videoEl, modalButtons);
+    } else {
+      modalImg.style.display = 'block';
+      modalImg.src = imgUrl;
+    }
+    
+    document.getElementById("modalRedditBtn").onclick = function() {
+      window.open(redditUrl, "_blank");
+    };
+    modal.style.display = "flex";
+    document.body.style.overflow = "hidden";
+  }
+
+  function cerrarModal() {
+    const modal = document.getElementById("imageModal");
+    modal.style.display = "none";
+    document.body.style.overflow = "";
+    const videoEl = modal.querySelector('video');
+    if (videoEl) { videoEl.pause(); videoEl.remove(); }
+    const iframeEl = modal.querySelector('iframe');
+    if (iframeEl) { iframeEl.remove(); }
+    document.getElementById("modalImg").style.display = 'block';
+    document.getElementById("modalNav").style.display = 'none';
+    currentGalleryImages = [];
+  }
+</script>
+
+</body></html>
