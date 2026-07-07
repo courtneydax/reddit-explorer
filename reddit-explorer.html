@@ -884,7 +884,7 @@
     document.addEventListener("keydown", e => {
       if (e.key === "Escape") closeSidebar();
     });
-    document.getElementById("btnSearch").addEventListener("click", () => { nuevaBusqueda(); closeSidebar(); });
+    document.getElementById("btnSearch").addEventListener("click", () => { newSearch(); closeSidebar(); });
     document.getElementById("btnReset").addEventListener("click", () => { window.location.href = window.location.href.split("?")[0]; });
     document.getElementById("btnPrev").addEventListener("click", paginaAnterior);
     document.getElementById("btnNext").addEventListener("click", paginaSiguiente);
@@ -894,7 +894,7 @@
 
     ["sub", "user", "minScore", "date", "sort"].forEach(id => {
       document.getElementById(id).addEventListener("keypress", e => {
-        if (e.key === "Enter") nuevaBusqueda();
+        if (e.key === "Enter") newSearch();
       });
     });
 
@@ -902,7 +902,7 @@
     document.getElementById("backend").addEventListener("change", () => {
       setBackendPreference(document.getElementById("backend").value);
       if (document.getElementById("sub").value.trim() || document.getElementById("user").value.trim()) {
-        nuevaBusqueda();
+        newSearch();
       }
     });
 
@@ -928,7 +928,7 @@
     const subParam  = urlParams.get("sub")  || urlParams.get("subreddit");
     if (userParam) document.getElementById("user").value = userParam;
     if (subParam)  document.getElementById("sub").value  = subParam;
-    if (userParam || subParam) setTimeout(nuevaBusqueda, 150);
+    if (userParam || subParam) setTimeout(newSearch, 150);
 
     document.getElementById("btnZoomIn").addEventListener("click", () => {
       if (currentWidth < 520) { currentWidth += 30; applyZoom(); }
@@ -981,11 +981,22 @@
     });
   });
 
-  function nuevaBusqueda() {
+  function newSearch() {
     historialMarcadores = [];
     paginaActual = 1;
     const dateVal = document.getElementById("date").value;
     currentTS = dateVal ? Math.floor(new Date(dateVal).getTime() / 1000) + 10800 : null;
+
+    // Reflect the search target in the URL so a reload restores it via the
+    // same urlParams-reading logic used for favorite links.
+    const sub = document.getElementById("sub").value.trim();
+    const user = document.getElementById("user").value.trim();
+    const params = new URLSearchParams();
+    if (sub) params.set("sub", sub);
+    if (user) params.set("user", user);
+    const newUrl = params.toString() ? `${getBaseUrl()}?${params}` : getBaseUrl();
+    history.replaceState(null, "", newUrl);
+
     ejecutarCarga();
   }
 
@@ -1151,6 +1162,19 @@
     return PLACEHOLDER_URLS.some(frag => url.includes(frag));
   }
 
+  // Only http(s) URLs may be used as media src / window.open targets — post.url is
+  // attacker-influenceable (a real Reddit user's freeform link-post URL), so it must
+  // never be trusted with schemes like javascript: that can execute in this page's context.
+  function isSafeMediaUrl(url) {
+    if (!url) return false;
+    try {
+      const parsed = new URL(url, window.location.href);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch (e) {
+      return false;
+    }
+  }
+
   function verificarImagenEliminada(imgEl, card) {
     imgEl.onload = function () {
       if (this.naturalWidth === 130 && this.naturalHeight === 60) card.remove();
@@ -1202,16 +1226,44 @@
     const isVideo = post.is_video || (post.media && post.media.reddit_video);
     const esGaleria = post.is_gallery_item || (galleryImages && galleryImages.length > 0);
 
-    let mediaElement = '';
+    // Built as real DOM nodes (not innerHTML strings) so a post.url containing HTML/attribute
+    // breakout characters (e.g. `"><svg onload=...>`) can never be parsed as markup — src is
+    // always a property assignment, and isSafeMediaUrl blocks non-http(s) schemes like javascript:.
+    let mediaEl = null;
     if (galleryImages && galleryImages.length > 0) {
-      mediaElement = `<img src="${galleryImages[0].url}" loading="lazy" class="img-clickable" alt="" />`;
+      if (isSafeMediaUrl(galleryImages[0].url)) {
+        mediaEl = document.createElement('img');
+        mediaEl.src = galleryImages[0].url;
+        mediaEl.loading = 'lazy';
+        mediaEl.className = 'img-clickable';
+        mediaEl.alt = '';
+      }
     } else if (isRedgifs && redgifsEmbedUrl) {
-      mediaElement = `<iframe src="${redgifsEmbedUrl}" class="img-clickable" style="width:100%; height:360px; display:block; cursor:pointer; background:#0d0d0e; border:none;" allowfullscreen="true"></iframe>`;
+      // redgifsEmbedUrl is built from a regex-extracted ID (getRedGifsEmbedUrl), never raw post.url.
+      mediaEl = document.createElement('iframe');
+      mediaEl.src = redgifsEmbedUrl;
+      mediaEl.className = 'img-clickable';
+      mediaEl.style.cssText = 'width:100%; height:360px; display:block; cursor:pointer; background:#0d0d0e; border:none;';
+      mediaEl.allowFullscreen = true;
     } else if (isVideo) {
-      mediaElement = `<video src="${displayUrl}" controls muted playsinline class="img-clickable" style="width:100%; height:auto; display:block; cursor:zoom-in; background:#0d0d0e; min-height:80px;"></video>`;
-    } else {
-      mediaElement = `<img src="${cardThumbUrl || displayUrl}" loading="lazy" class="img-clickable" alt="" />`;
+      if (isSafeMediaUrl(displayUrl)) {
+        mediaEl = document.createElement('video');
+        mediaEl.src = displayUrl;
+        mediaEl.controls = true;
+        mediaEl.muted = true;
+        mediaEl.playsInline = true;
+        mediaEl.className = 'img-clickable';
+        mediaEl.style.cssText = 'width:100%; height:auto; display:block; cursor:zoom-in; background:#0d0d0e; min-height:80px;';
+      }
+    } else if (isSafeMediaUrl(cardThumbUrl || displayUrl)) {
+      mediaEl = document.createElement('img');
+      mediaEl.src = cardThumbUrl || displayUrl;
+      mediaEl.loading = 'lazy';
+      mediaEl.className = 'img-clickable';
+      mediaEl.alt = '';
     }
+
+    if (!mediaEl) return; // no safe media to display for this post
 
     card.innerHTML = `
       <div class="card-img-wrap">
@@ -1219,7 +1271,6 @@
         ${isVideo ? '<div class="tag">VIDEO</div>' : ""}
         ${isRedgifs ? '<div class="tag">REDGIFS</div>' : ""}
         ${esGaleria ? '<div class="tag tag-blue">GALLERY</div>' : ""}
-        ${mediaElement}
       </div>
       <div class="card-info">
         <div class="card-meta">
@@ -1235,6 +1286,8 @@
         </div>
       </div>
     `;
+
+    card.querySelector('.card-img-wrap').appendChild(mediaEl);
 
     const sleuthBtn = card.querySelector('.card-btn.sleuth');
     const imgLinkBtn = card.querySelector('.card-btn.img-link');
@@ -1271,7 +1324,7 @@
 
     if (iframeEl) {
       iframeEl.onclick = function() {
-        window.open(post.url, "_blank");
+        window.open(isSafeMediaUrl(post.url) ? post.url : fullRedditUrl, "_blank");
       };
     }
 
@@ -1295,7 +1348,8 @@
     };
     
     imgLinkBtn.onclick = function() {
-      window.open(isRedgifs ? redgifsEmbedUrl : displayUrl, "_blank");
+      const targetUrl = isRedgifs ? redgifsEmbedUrl : displayUrl;
+      window.open(isSafeMediaUrl(targetUrl) ? targetUrl : fullRedditUrl, "_blank");
     };
     
     redditLinkBtn.onclick = function() {
@@ -1329,6 +1383,8 @@
   }
 
   function abrirModal(imgUrl, redditUrl) {
+    if (!isSafeMediaUrl(imgUrl)) return;
+
     const modal = document.getElementById("imageModal");
     const modalImg = document.getElementById("modalImg");
     
