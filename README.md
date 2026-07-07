@@ -7,8 +7,6 @@ A single-file, no-install Reddit browser. Search any subreddit or user, browse t
 1. Download `reddit-explorer.html`.
 2. Open it in Chrome (double-click, or drag it into a browser window).
 
-No build step, no server, no dependencies to install.
-
 ## Features
 
 - Search by subreddit (`r/`) or user (`u/`)
