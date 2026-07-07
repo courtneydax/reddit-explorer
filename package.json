@@ -1,0 +1,10 @@
+{
+  "name": "reddit-explorer",
+  "private": true,
+  "scripts": {
+    "test": "node tests/smoke-test.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
+  }
+}
