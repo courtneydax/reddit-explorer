@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reddit Explorer</title>
+  <title>Reddit Explorer DL</title>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     :root {
       --accent: #ff4500;
@@ -176,6 +177,18 @@
       border-radius: 4px;
       padding: 2px 6px;
       margin-left: 2px;
+    }
+
+    .dl-badge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      color: white;
+      background: var(--blue-btn);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-left: 2px;
+      letter-spacing: 0.5px;
     }
 
     .btn-hamburger {
@@ -530,6 +543,40 @@
       transition: all 0.15s; line-height: 1.4; font-weight: bold;
     }
     .add-fav-btn:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+    .btn-sidebar.rip { background: var(--blue-btn); color: white; }
+
+    .rip-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      z-index: 4000; align-items: center; justify-content: center;
+    }
+    .rip-overlay.show { display: flex; }
+    .rip-box {
+      width: 380px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 12px;
+      max-height: 85vh; overflow-y: auto;
+    }
+    .rip-title { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 15px; color: var(--text); }
+    .rip-status { font-size: 12px; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; min-height: 16px; }
+    .rip-bar-track { width: 100%; height: 8px; border-radius: 4px; background: var(--input-bg); border: 1px solid var(--border); overflow: hidden; }
+    .rip-bar-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.15s; }
+    .rip-counts { display: flex; justify-content: space-between; font-size: 11px; font-family: 'IBM Plex Mono', monospace; color: var(--text-muted); }
+    .rip-counts span.ok { color: #4ade80; }
+    .rip-counts span.fail { color: #f87171; }
+    .rip-buttons { display: flex; gap: 8px; margin-top: 4px; }
+    .rip-buttons button {
+      flex: 1; padding: 8px; border-radius: 7px; border: none;
+      font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; cursor: pointer;
+    }
+    .rip-buttons .rip-cancel { background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--border); }
+    .rip-buttons .rip-close { background: var(--accent); color: white; }
+    .rip-buttons .rip-retry { background: var(--blue-btn); color: white; }
+    .rip-log {
+      max-height: 90px; overflow-y: auto; background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 6px 8px; font-family: 'IBM Plex Mono', monospace; font-size: 9.5px;
+      color: #f87171; display: none; white-space: pre-wrap; word-break: break-all;
+    }
+    .rip-log.show { display: block; }
   </style>
 </head>
 <body>
@@ -541,6 +588,7 @@
     <div class="logo-icon">⬆</div>
     <span class="logo-text"><span>Red</span>dit Explorer</span>
     <span class="version-badge" id="versionBadge"></span>
+    <span class="dl-badge" title="Includes bulk zip-download feature — routes media through third-party CORS proxies. See README.">DL</span>
   </div>
   <div class="header-search">
     <div class="search-field">
@@ -634,6 +682,7 @@
     </div>
 
     <div class="sidebar-actions">
+      <button class="btn-sidebar rip" id="btnRip">⬇ Rip Entire Profile</button>
       <button class="btn-sidebar secondary" id="btnReset">↺ Reset</button>
     </div>
 
@@ -691,6 +740,25 @@
     <button class="modal-btn reddit" id="modalRedditBtn">↗ View on Reddit</button>
   </div>
   <div class="modal-hint">ESC to close · Click outside to close · ← → to navigate</div>
+</div>
+
+<div id="ripOverlay" class="rip-overlay">
+  <div class="rip-box">
+    <div class="rip-title" id="ripTitle">Ripping profile…</div>
+    <div class="rip-status" id="ripStatus">Scanning posts…</div>
+    <div class="rip-bar-track"><div class="rip-bar-fill" id="ripBarFill"></div></div>
+    <div class="rip-counts">
+      <span>Found: <span id="ripFound">0</span></span>
+      <span class="ok">Saved: <span id="ripSaved">0</span></span>
+      <span class="fail">Failed: <span id="ripFailed">0</span></span>
+    </div>
+    <div class="rip-log" id="ripLog"></div>
+    <div class="rip-buttons">
+      <button class="rip-cancel" id="ripCancelBtn">Cancel</button>
+      <button class="rip-retry" id="ripRetryBtn" style="display:none">↻ Retry Failed</button>
+      <button class="rip-close" id="ripCloseBtn" style="display:none">Done — Close</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -943,7 +1011,7 @@
   let refreshUsersList = null;
 
   document.addEventListener("DOMContentLoaded", () => {
-    document.title = `Reddit Explorer v${APP_VERSION}`;
+    document.title = `Reddit Explorer DL v${APP_VERSION}`;
     document.getElementById("versionBadge").textContent = `v${APP_VERSION}`;
 
     const sidebarEl = document.querySelector(".sidebar");
@@ -972,6 +1040,11 @@
     document.getElementById("btnModalClose").addEventListener("click", cerrarModal);
     document.getElementById("btnImportFav").addEventListener("click", importFavoritesFromJSON);
     document.getElementById("btnExportFav").addEventListener("click", exportFavoritesToJSON);
+
+    document.getElementById("btnRip").addEventListener("click", ripEntireProfile);
+    document.getElementById("ripCancelBtn").addEventListener("click", () => { ripCancelled = true; });
+    document.getElementById("ripCloseBtn").addEventListener("click", closeRipOverlay);
+    document.getElementById("ripRetryBtn").addEventListener("click", retryFailedRip);
 
     document.querySelectorAll('.toggle-row').forEach(row => {
       row.addEventListener('click', () => {
@@ -1594,6 +1667,413 @@
     };
     modal.style.display = "flex";
     document.body.style.overflow = "hidden";
+  }
+
+  // ══════════════════════════════════════
+  //  RIP ENTIRE PROFILE
+  //
+  //  Reddit-hosted media (preview.redd.it especially) blocks cross-origin
+  //  fetches outright, so failed direct fetches fall back through a list of
+  //  public CORS proxies. Those proxies rate-limit hard, so concurrent proxy
+  //  calls are throttled and 429s are retried with backoff before moving to
+  //  the next provider. See README for the privacy implications of this.
+  // ══════════════════════════════════════
+  let ripCancelled = false;
+  let ripState = null; // { zip, usedNames, saved, failed, failedTargets, user, sub, scanResult }
+  const errorLines = [];
+
+  function closeRipOverlay() {
+    document.getElementById('ripOverlay').classList.remove('show');
+  }
+
+  function finishRipUI() {
+    document.getElementById('ripCancelBtn').style.display = 'none';
+    document.getElementById('ripCloseBtn').style.display = 'block';
+    const retryBtn = document.getElementById('ripRetryBtn');
+    if (ripState && ripState.failedTargets.length > 0) {
+      retryBtn.textContent = `↻ Retry Failed (${ripState.failedTargets.length})`;
+      retryBtn.style.display = 'block';
+    } else {
+      retryBtn.style.display = 'none';
+    }
+  }
+
+  function logError(url, reason) {
+    const logEl = document.getElementById('ripLog');
+    errorLines.push(`${reason}  —  ${url.slice(0, 70)}`);
+    if (errorLines.length > 8) errorLines.shift();
+    logEl.textContent = errorLines.join('\n');
+    logEl.classList.add('show');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function extractFilename(url, fallbackExt) {
+    try {
+      const clean = url.split('?')[0].split('#')[0];
+      let name = decodeURIComponent(clean.substring(clean.lastIndexOf('/') + 1));
+      // post.url is attacker-influenceable, and decodeURIComponent runs after the
+      // last literal "/" is stripped — so a %2f-encoded slash in the URL could
+      // decode into a path separator here. Strip any that survive so this can
+      // never be used as a zip-slip path (e.g. "../../startup/evil.exe") once the
+      // user extracts the zip.
+      name = name.replace(/[\\/]/g, '_');
+      if (!name || !/\.[a-z0-9]{2,5}$/i.test(name)) {
+        name = 'file_' + Math.random().toString(36).slice(2, 9) + (fallbackExt || '.jpg');
+      }
+      return name;
+    } catch (e) {
+      return 'file_' + Math.random().toString(36).slice(2, 9) + (fallbackExt || '.jpg');
+    }
+  }
+
+  function guessExtFromMediaType(type) {
+    if (type === 'videos') return '.mp4';
+    return '.jpg';
+  }
+
+  // Resolves a single non-gallery post to a downloadable {url, mediaType}, mirroring
+  // renderCard's displayUrl logic so the rip zip matches what's shown in the gallery.
+  // Kept separate from renderCard (rather than sharing a helper) so this file's diff
+  // against reddit-explorer.html stays additive and easy to re-sync after main changes.
+  function resolveRipTarget(post) {
+    // redgifs URLs point at an HTML watch page, not a raw media file — fetching
+    // one would save the webpage's HTML, not a video, so it can't be ripped.
+    if (post.url && post.url.includes('redgifs.com')) return null;
+
+    let displayUrl = post.url;
+    if (post.url && post.url.match(/^https?:\/\/i\.redd\.it\/.+\.gif$/i)) {
+      displayUrl = post.url;
+    }
+    if (post.preview && post.preview.images && post.preview.images[0].source) {
+      const previewUrl = post.preview.images[0].source.url.replace(/&amp;/g, "&");
+      if (!post.url.match(/\.gif$/i)) displayUrl = previewUrl;
+    }
+    if (post.is_video && post.media && post.media.reddit_video && post.media.reddit_video.fallback_url) {
+      displayUrl = post.media.reddit_video.fallback_url;
+    }
+
+    if (esUrlPlaceholder(displayUrl)) return null;
+    if (!isSafeMediaUrl(displayUrl)) return null;
+    if (isDomainBlocked(post.url)) return null;
+
+    const mediaType = getMediaType(post, false);
+    if (!mediaFilters[mediaType]) return null;
+
+    return { url: displayUrl, mediaType };
+  }
+
+  function resolveGalleryRipTargets(post) {
+    if (!mediaFilters.gallery) return [];
+    if (isDomainBlocked(post.url)) return [];
+    const targets = [];
+    Object.keys(post.media_metadata).forEach(id => {
+      const item = post.media_metadata[id];
+      if (item.status === "valid" && item.s) {
+        const url = (item.s.u ? item.s.u : item.s.gif).replace(/&amp;/g, "&");
+        if (isSafeMediaUrl(url) && !esUrlPlaceholder(url)) {
+          targets.push({ url, mediaType: 'gallery' });
+        }
+      }
+    });
+    return targets;
+  }
+
+  async function collectRipTargets(sub, user, sort, minScore, backend, statusCb) {
+    const targets = [];
+    let ts = null;
+    let page = 0;
+    let examined = 0;
+    let scanIncomplete = false;
+    let scanIncompleteReason = null;
+    const SCAN_PAGE_SIZE = 100;
+
+    while (!ripCancelled) {
+      page++;
+      statusCb(`Scanning posts… (page ${page}, ${targets.length} media found, ${examined} posts examined)`);
+      const url = buildSearchUrl(backend, { sub, user, sort, limit: SCAN_PAGE_SIZE, ts });
+
+      let posts = null;
+      let lastErr = null;
+      // Retry a few times before giving up on the whole scan — a single transient
+      // error here used to silently truncate the rip with no indication anything
+      // went wrong.
+      for (let attempt = 0; attempt < 3 && !posts; attempt++) {
+        try {
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const res = await resp.json();
+          if (!res || !Array.isArray(res.data)) throw new Error('Unexpected response shape');
+          posts = res.data;
+        } catch (e) {
+          lastErr = e;
+          if (attempt < 2) await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+        }
+      }
+
+      if (posts === null) {
+        scanIncomplete = true;
+        scanIncompleteReason = lastErr ? lastErr.message : 'unknown error';
+        break;
+      }
+      if (posts.length === 0) break;
+
+      posts.forEach(post => {
+        ts = post.created_utc;
+        examined++;
+        if (post.score < minScore) return;
+
+        if (post.is_gallery && post.media_metadata) {
+          targets.push(...resolveGalleryRipTargets(post));
+        } else {
+          const t = resolveRipTarget(post);
+          if (t) targets.push(t);
+        }
+      });
+
+      if (posts.length < SCAN_PAGE_SIZE) break;
+    }
+    return { targets, examined, pages: page, scanIncomplete, scanIncompleteReason };
+  }
+
+  class Semaphore {
+    constructor(max) { this.max = max; this.active = 0; this.queue = []; }
+    acquire() {
+      return new Promise(resolve => {
+        const tryAcquire = () => {
+          if (this.active < this.max) { this.active++; resolve(); }
+          else this.queue.push(tryAcquire);
+        };
+        tryAcquire();
+      });
+    }
+    release() {
+      this.active--;
+      const next = this.queue.shift();
+      if (next) next();
+    }
+  }
+  const proxyGate = new Semaphore(2);
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  const PROXY_BUILDERS = [
+    // wsrv.nl (weserv) is a purpose-built image proxy/CDN, not a generic
+    // "CORS bypass" service — it's far less likely to be caught by
+    // ad-blocker / privacy-extension blocklists than corsproxy.io etc.
+    url => 'https://wsrv.nl/?url=' + encodeURIComponent(url.replace(/^https?:\/\//, '')),
+    url => 'https://corsproxy.io/?url=' + encodeURIComponent(url),
+    url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+    url => 'https://thingproxy.freeboard.io/fetch/' + url,
+  ];
+
+  async function fetchViaProxies(url) {
+    let lastErr = new Error('no proxy attempted');
+    for (const build of PROXY_BUILDERS) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await proxyGate.acquire();
+        try {
+          const resp = await fetch(build(url));
+          if (resp.status === 429) {
+            lastErr = new Error('proxy HTTP 429');
+            await sleep(700 * (attempt + 1));
+            continue; // retry same provider
+          }
+          if (!resp.ok) { lastErr = new Error(`proxy HTTP ${resp.status}`); break; } // try next provider
+          return await resp.blob();
+        } catch (e) {
+          lastErr = e;
+          break; // try next provider
+        } finally {
+          proxyGate.release();
+        }
+      }
+    }
+    throw lastErr;
+  }
+
+  async function fetchBlob(url) {
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return await resp.blob();
+    } catch (directErr) {
+      try {
+        return await fetchViaProxies(url);
+      } catch (proxyErr) {
+        const reason = directErr.message === 'Failed to fetch' || directErr.name === 'TypeError'
+          ? 'blocked (CORS/network)'
+          : directErr.message;
+        logError(url, `${reason}, proxies failed: ${proxyErr.message}`);
+        throw directErr;
+      }
+    }
+  }
+
+  // Downloads a batch of targets into the shared ripState.zip, updating the live UI
+  // as it goes. Returns the targets that failed this pass, so a full run and a
+  // "retry failed" pass can both reuse it.
+  async function downloadTargets(targetList) {
+    const total = targetList.length;
+    const statusEl = document.getElementById('ripStatus');
+    const barFill  = document.getElementById('ripBarFill');
+    const savedEl  = document.getElementById('ripSaved');
+    const failedEl = document.getElementById('ripFailed');
+    let idx = 0, done = 0;
+    const newFailed = [];
+    const concurrency = Math.max(1, Math.min(4, total));
+
+    async function worker() {
+      while (idx < targetList.length && !ripCancelled) {
+        const t = targetList[idx++];
+        try {
+          const blob = await fetchBlob(t.url);
+          const baseName = extractFilename(t.url, guessExtFromMediaType(t.mediaType));
+          let finalName = baseName, n = 1;
+          while (ripState.usedNames.has(finalName)) {
+            const dot = baseName.lastIndexOf('.');
+            finalName = dot === -1 ? `${baseName}_${n}` : `${baseName.slice(0, dot)}_${n}${baseName.slice(dot)}`;
+            n++;
+          }
+          ripState.usedNames.add(finalName);
+          ripState.zip.file(finalName, blob);
+          ripState.saved++;
+        } catch (e) {
+          ripState.failed++;
+          newFailed.push(t);
+        }
+        done++;
+        savedEl.textContent = ripState.saved;
+        failedEl.textContent = ripState.failed;
+        barFill.style.width = Math.round((done / total) * 100) + '%';
+        statusEl.textContent = `Downloading ${done} / ${total}…`;
+      }
+    }
+
+    const workers = [];
+    for (let i = 0; i < concurrency; i++) workers.push(worker());
+    await Promise.all(workers);
+    return newFailed;
+  }
+
+  async function finalizeZipDownload() {
+    const statusEl = document.getElementById('ripStatus');
+    const barFill  = document.getElementById('ripBarFill');
+    const scanWarn = (ripState.scanResult && ripState.scanResult.scanIncomplete)
+      ? ` ⚠ Scan stopped early after ${ripState.scanResult.pages} page(s) — not the full profile. See log.`
+      : '';
+    if (ripState.saved > 0) {
+      try {
+        const blob = await ripState.zip.generateAsync({ type: 'blob' }, meta => {
+          barFill.style.width = Math.round(meta.percent) + '%';
+        });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        const label = ripState.user ? `u_${ripState.user}` : `r_${ripState.sub}`;
+        link.download = `reddit_rip_${label}_${Date.now()}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        statusEl.textContent = `Done. Saved ${ripState.saved} file(s), ${ripState.failed} failed.${scanWarn}`;
+      } catch (e) {
+        statusEl.textContent = `Zip generation failed: ${e.message}`;
+      }
+    } else {
+      statusEl.textContent = `Nothing downloaded successfully (${ripState.failed} failed).${scanWarn}`;
+    }
+  }
+
+  async function ripEntireProfile() {
+    const sub      = document.getElementById("sub").value.trim();
+    const user     = document.getElementById("user").value.trim();
+    const sort     = document.getElementById("sort").value;
+    const minScore = parseInt(document.getElementById("minScore").value) || 0;
+    const backend  = document.getElementById("backend").value;
+
+    if (!sub && !user) {
+      alert("Enter a subreddit or user first.");
+      return;
+    }
+    if (typeof JSZip === 'undefined') {
+      alert("Zip library failed to load — check your connection and try again.");
+      return;
+    }
+
+    ripCancelled = false;
+    errorLines.length = 0;
+    const overlay  = document.getElementById('ripOverlay');
+    const statusEl = document.getElementById('ripStatus');
+    const barFill  = document.getElementById('ripBarFill');
+    const foundEl  = document.getElementById('ripFound');
+    const savedEl  = document.getElementById('ripSaved');
+    const failedEl = document.getElementById('ripFailed');
+    const logEl    = document.getElementById('ripLog');
+
+    document.getElementById('ripTitle').textContent = `Ripping ${user ? 'u/' + user : 'r/' + sub}…`;
+    document.getElementById('ripCloseBtn').style.display = 'none';
+    document.getElementById('ripRetryBtn').style.display = 'none';
+    document.getElementById('ripCancelBtn').style.display = 'block';
+    barFill.style.width = '0%';
+    foundEl.textContent = '0';
+    savedEl.textContent = '0';
+    failedEl.textContent = '0';
+    logEl.textContent = '';
+    logEl.classList.remove('show');
+    overlay.classList.add('show');
+
+    const scanResult = await collectRipTargets(sub, user, sort, minScore, backend, msg => { statusEl.textContent = msg; });
+    const targets = scanResult.targets;
+    foundEl.textContent = targets.length;
+
+    if (scanResult.scanIncomplete) {
+      logError('(scan)', `Scan stopped early after ${scanResult.pages} page(s)/${scanResult.examined} posts: ${scanResult.scanIncompleteReason}`);
+    }
+
+    if (ripCancelled) {
+      statusEl.textContent = 'Cancelled during scan.';
+      finishRipUI();
+      return;
+    }
+    if (targets.length === 0) {
+      statusEl.textContent = scanResult.scanIncomplete
+        ? `Scan failed before finding anything: ${scanResult.scanIncompleteReason}`
+        : 'No matching media found (check filters / blocked domains).';
+      finishRipUI();
+      return;
+    }
+
+    ripState = { zip: new JSZip(), usedNames: new Set(), saved: 0, failed: 0, failedTargets: [], user, sub, scanResult };
+    statusEl.textContent = `Downloading 0 / ${targets.length}…`;
+
+    ripState.failedTargets = await downloadTargets(targets);
+
+    statusEl.textContent = ripCancelled
+      ? `Cancelled. Packaging ${ripState.saved} downloaded file(s)…`
+      : `Packaging ${ripState.saved} file(s) into zip…`;
+
+    await finalizeZipDownload();
+    finishRipUI();
+  }
+
+  async function retryFailedRip() {
+    if (!ripState || ripState.failedTargets.length === 0) return;
+    ripCancelled = false;
+    const toRetry = ripState.failedTargets;
+    ripState.failedTargets = [];
+
+    document.getElementById('ripTitle').textContent = `Retrying ${toRetry.length} failed file(s)…`;
+    document.getElementById('ripRetryBtn').style.display = 'none';
+    document.getElementById('ripCloseBtn').style.display = 'none';
+    document.getElementById('ripCancelBtn').style.display = 'block';
+    document.getElementById('ripBarFill').style.width = '0%';
+    document.getElementById('ripStatus').textContent = `Downloading 0 / ${toRetry.length}…`;
+
+    ripState.failedTargets = await downloadTargets(toRetry);
+
+    document.getElementById('ripStatus').textContent = ripCancelled
+      ? `Cancelled. Packaging ${ripState.saved} downloaded file(s)…`
+      : `Packaging ${ripState.saved} file(s) into zip…`;
+
+    await finalizeZipDownload();
+    finishRipUI();
   }
 
   function cerrarModal() {
