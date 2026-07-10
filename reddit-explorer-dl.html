@@ -776,13 +776,14 @@
   // until a user actively narrows what they want to see.
   const mediaFilters = { images: true, gifs: true, videos: true, gallery: true };
 
-  // Blocked domains — redgifs.com is blocked by default since it's the most common
-  // source of reposted content that's easier to find elsewhere (repostsleuth etc).
-  let blockedDomains = ['redgifs.com'];
-
   const FAV_SUBS_KEY = 'redditExplorer_favSubs';
   const FAV_USERS_KEY = 'redditExplorer_favUsers';
   const BACKEND_KEY = 'redditExplorer_backend';
+  const BLOCKED_DOMAINS_KEY = 'redditExplorer_blockedDomains';
+
+  // Blocked domains — empty by default; add hosts (e.g. redgifs.com) via the
+  // sidebar. Persisted in localStorage the same way Favorites are.
+  let blockedDomains = getFavorites(BLOCKED_DOMAINS_KEY);
 
   const BACKEND_LABELS = { arctic: 'Arctic Shift', pullpush: 'PullPush' };
 
@@ -1376,6 +1377,7 @@
       removeBtn.textContent = '✕';
       removeBtn.onclick = () => {
         blockedDomains.splice(i, 1);
+        saveFavorites(BLOCKED_DOMAINS_KEY, blockedDomains);
         renderDomainChips();
         refreshIfSearched();
       };
@@ -1391,6 +1393,7 @@
     const val = input.value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0];
     if (val && !blockedDomains.includes(val)) {
       blockedDomains.push(val);
+      saveFavorites(BLOCKED_DOMAINS_KEY, blockedDomains);
       renderDomainChips();
       refreshIfSearched();
     }
